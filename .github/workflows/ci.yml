@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Build & test on Linux and macOS
+  # -------------------------------------------------------------------------
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y ninja-build
+
+      - name: Install Ninja (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: ninja -C build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  # -------------------------------------------------------------------------
+  # Format check (runs only on Linux to keep CI fast)
+  # -------------------------------------------------------------------------
+  format-check:
+    name: clang-format check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get install -y clang-format
+
+      - name: Install Ninja
+        run: sudo apt-get install -y ninja-build
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja
+
+      - name: Check formatting
+        run: ninja -C build format-check
+

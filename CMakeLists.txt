@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# ---------------------------------------------------------------------------
+# Main executable
+# ---------------------------------------------------------------------------
 add_executable(autograd
   main.cpp
 )
@@ -14,11 +17,31 @@ target_include_directories(autograd
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Keep the binary next to the build dir root
 set_target_properties(autograd
   PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
+
+# ---------------------------------------------------------------------------
+# Tests (CTest)
+# ---------------------------------------------------------------------------
+enable_testing()
+
+add_executable(test_tensor
+  tests/test_tensor.cpp
+)
+
+target_include_directories(test_tensor
+  PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+set_target_properties(test_tensor
+  PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+
+add_test(NAME tensor_tests COMMAND test_tensor)
 
 # ---------------------------------------------------------------------------
 # clang-format targets
@@ -32,6 +55,7 @@ file(GLOB_RECURSE ALL_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp
 )
 
 if(CLANG_FORMAT_EXE)

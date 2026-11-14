@@ -57,13 +57,13 @@ struct Tensor {
   TensorView<T> operator[](std::size_t i) {
     std::size_t stride = 1;
     for (std::size_t d = 1; d < shape.size(); ++d) stride *= shape[d];
-    return {data.data(), &shape, 0, i * stride};
+    return {data.data(), &shape, 1, i * stride};
   }
 
   const TensorView<const T> operator[](std::size_t i) const {
     std::size_t stride = 1;
     for (std::size_t d = 1; d < shape.size(); ++d) stride *= shape[d];
-    return {data.data(), &shape, 0, i * stride};
+    return {data.data(), &shape, 1, i * stride};
   }
 
   static Tensor<T> full(Shape shape, T fill_value, bool requires_grad = false) {
@@ -89,7 +89,7 @@ struct Tensor {
     t.requires_grad = requires_grad;
 
     thread_local std::mt19937 rng{std::random_device{}()};
-    std::uniform_real_distribution<double> dist(-1.0, 1.0);
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
 
     for (auto& v : t.data) v = static_cast<T>(dist(rng));
 
