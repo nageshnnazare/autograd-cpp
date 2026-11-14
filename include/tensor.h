@@ -1,6 +1,7 @@
 #ifndef _TENSOR_H_
 #define _TENSOR_H_
 
+#include <cstring>
 #include <numeric>
 #include <random>
 #include <stdexcept>
