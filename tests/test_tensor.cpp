@@ -114,6 +114,14 @@ TEST(requires_grad_flag) {
   EXPECT(b.requires_grad == false);
 }
 
+TEST(size_and_elements) {
+  AG::Shape shape{2, 3};
+  auto t = AG::Tensor<float>::from(shape, {1, 2, 3, 4, 5, 6});
+  EXPECT(AG::numel(shape) == 6);
+  EXPECT(AG::flatid(shape, {1, 1}) == 4);
+  EXPECT(t.data[AG::flatid(shape, {1, 2})] == 6);
+}
+
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------

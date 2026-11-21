@@ -1,14 +1,13 @@
-#ifndef _TENSOR_H_
-#define _TENSOR_H_
+#ifndef _AG_TENSOR_H_
+#define _AG_TENSOR_H_
 
+#include <cassert>
 #include <cstring>
 #include <numeric>
 #include <random>
 #include <stdexcept>
 #include <vector>
-
-// Usage:
-//   auto w = AG::Tensor::zeros<float>({3, 5}, /*requires_grad=*/true);
+#include <unordered_set>
 
 namespace AG {
 
@@ -36,24 +35,40 @@ struct TensorView {
 
   operator const T&() const { return base[offset]; }
 
-  // assign
+  // Assign
   TensorView& operator=(const T& val) {
     base[offset] = val;
     return *this;
   }
 };
 
+// Num elements
 std::size_t numel(const Shape& shape) {
   return std::accumulate(shape.begin(), shape.end(), static_cast<std::size_t>(1),
                          std::multiplies<>());
+}
+
+// Flat index
+std::size_t flatid(const Shape& shape, const std::vector<std::size_t>& coords) {
+  assert(coords.size() == shape.size());
+  std::size_t id = 0;
+  for (std::size_t i = 0; i < shape.size(); ++i) {
+    assert(coords[i] < shape[i]);
+    id = id * shape[i] + coords[i];
+  }
+  return id;
 }
 
 template <typename T>
 struct Tensor {
   Shape shape;
   std::vector<T> data;
-  std::vector<float> grad;
+  std::string op_name;
+
   bool requires_grad = false;
+  std::vector<float> grad;
+  std::vector<Tensor> parents;
+  std::function<void()> backward_fn;
 
   TensorView<T> operator[](std::size_t i) {
     std::size_t stride = 1;
@@ -72,6 +87,9 @@ struct Tensor {
     t.shape = std::move(shape);
     t.data.assign(numel(t.shape), fill_value);
     t.requires_grad = requires_grad;
+    if (requires_grad) {
+      t.grad.assign(t.data.size(), 0.f);
+    }
     return t;
   }
 
@@ -88,6 +106,9 @@ struct Tensor {
     t.shape = std::move(shape);
     t.data.resize(numel(t.shape));
     t.requires_grad = requires_grad;
+    if (requires_grad) {
+      t.grad.assign(t.data.size(), 0.f);
+    }
 
     thread_local std::mt19937 rng{std::random_device{}()};
     std::uniform_real_distribution<double> dist(0.0, 1.0);
@@ -107,7 +128,50 @@ struct Tensor {
     t.shape = std::move(shape);
     t.data = std::move(data);
     t.requires_grad = requires_grad;
+    if (requires_grad) {
+      t.grad.assign(t.data.size(), 0.f);
+    }
     return t;
+  }
+
+  void zero_grad() {
+    if (!grad.empty()) {
+      std::fill(grad.begin(), grad.end(), 0.f);
+    }
+  }
+
+  void backward() {
+    if (grad.size() != data.size()) {
+      grad.assign(data.size(), 0.f);
+    }
+    if (shape.empty()) {
+      grad[0] = 1.f;
+    } else {
+      // dL/dL = 1
+      std::fill(grad.begin(), grad.end(), 1.f);
+    }
+
+    std::vector<Tensor*> order;
+    std::unordered_set<Tensor*> seen;
+
+    std::function<void(Tensor*)> topo = [&](Tensor* t) {
+      if (!seen.insert(t).second) {
+        return;
+      }
+      for (auto &p : t->parents) {
+        topo(p.get());
+      }
+      order.push_back(t);
+    };
+
+    topo(this);
+
+    for (auto it = order.rbegin(); it != order.rend(); ++it) {
+      Tensor *t = *it;
+      if (t->backward_fn) {
+        t->backward_fn();
+      }
+    }
   }
 
   void print(const char* name = "") const {
@@ -159,4 +223,4 @@ struct Tensor {
 
 }  // namespace AG
 
-#endif  // !_TENSOR_H_
+#endif  // !_AG_TENSOR_H_
